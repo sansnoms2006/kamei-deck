@@ -1,0 +1,24 @@
+{
+  "name": "Kamei Deck",
+  "short_name": "Kamei Deck",
+  "description": "La télécommande de Kamei TV : scènes OBS, régie, débats et sondages Discord",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050b08",
+  "theme_color": "#06100b",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "../kamei-console/icons/default-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../kamei-console/icons/default-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

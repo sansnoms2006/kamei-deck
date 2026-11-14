@@ -18,7 +18,7 @@ header img{height:30px}header b{font-size:18px;letter-spacing:.12em}
 .dot.on{background:var(--g);box-shadow:0 0 12px var(--g)}
 #cur{font-size:12px;color:var(--m);max-width:42vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:rgba(5,11,8,.95);backdrop-filter:blur(12px);border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:0;color:var(--m);font:600 12px inherit;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button{flex:1;background:none;border:0;color:var(--m);font:600 11px inherit;min-width:0;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px}
 nav button span{font-size:22px}nav button.on{color:var(--g)}
 .tab{display:none}.tab.on{display:block}
 h2{font-size:13px;letter-spacing:.18em;color:var(--g);margin:18px 2px 10px;text-transform:uppercase}
@@ -201,6 +201,16 @@ input[type=color]{padding:4px;height:46px}
   <datalist id="fPlayers"></datalist>
 </section>
 
+<!-- intros -->
+<section class="tab" id="t-intros">
+  <div class="seg" id="iShows"><button class="btn on" data-is="foot">⚽ Foot</button><button class="btn" data-is="gaming">🎮 Gaming</button><button class="btn" data-is="interview">🎤 Interview</button><button class="btn" data-is="arene">🏟️ Arène</button></div>
+  <div class="card" style="margin-top:12px"><div id="iForm"></div>
+    <button class="btn g" id="iSend">💾 Envoyer à OBS</button>
+    <button class="btn" id="iPlay">▶ Lancer l'intro</button>
+    <p class="hint" id="iHint">Les textes sont pris au lancement de l'intro.</p>
+  </div>
+</section>
+
 <!-- discord -->
 <section class="tab" id="t-discord">
   <div id="login" class="card" style="display:none">
@@ -244,6 +254,7 @@ input[type=color]{padding:4px;height:46px}
   <button data-t="scenes" class="on"><span>🎬</span>Scènes</button>
   <button data-t="regie"><span>🎛️</span>Régie</button>
   <button data-t="foot"><span>⚽</span>Foot</button>
+  <button data-t="intros"><span>🎬</span>Intros</button>
   <button data-t="discord"><span>💬</span>Discord</button>
 </nav>
 <div id="toast"></div>
@@ -496,6 +507,37 @@ $('#fTeams').onclick = () => {
 $('#fLtOn').onclick = () => F({ op: 'lt', visible: true, name: $('#fLtN').value.trim(), role: $('#fLtR').value.trim() });
 $('#fLtOff').onclick = () => F({ op: 'lt', visible: false });
 $('#fNew').onclick = () => { if (confirm('Remettre le match à zéro (score, fautes, chrono, feuille de match) ?')) F({ op: 'new' }, 'Nouveau match'); };
+
+
+/* ---------- Intros (textes modifiables) ---------- */
+const IFIELDS = {
+  foot: [['sub', 'Sous-titre'], ['tag', 'Phrase de fin'], ['scorers', 'Buteur affiché (plan « Les buts »)', 2], ['cards', 'Cartons (1 par ligne : jaune puis rouge)', 2]],
+  gaming: [['sub', 'Sous-titre'], ['tag', 'Phrase de fin'], ['games', 'Les jeux (plan 1)'], ['chat', 'Messages du chat — « pseudo: message », 1 par ligne', 5], ['top', 'Records — « pseudo: score », 3 lignes', 3]],
+  interview: [['sub', 'Sous-titre'], ['tag', 'Phrase de fin'], ['guest', 'Nom de l\'invité'], ['role', 'Sa fonction'], ['quote', 'Sa citation (2 lignes)', 2], ['questions', 'Questions du chat (3 lignes)', 3], ['steps', 'Parcours — « TITRE: phrase », 3 lignes', 3]],
+  arene: [['sub', 'Sous-titre'], ['tag', 'Phrase de fin'], ['topic', 'Sujet du débat'], ['pour', 'Camp 1'], ['contre', 'Camp 2'], ['args', 'Arguments (3 lignes)', 3]],
+};
+const ISCENE = { foot: '🎬 Intro Foot', gaming: '🎬 Intro Gaming', interview: '🎬 Intro Interview', arene: '🎬 Intro Arène' };
+let iShow = 'foot', iDirty = false;
+function iBuild() {
+  $('#iForm').innerHTML = (iShow === 'foot' ? '<p class="hint" style="margin-top:0">Les noms des équipes viennent de l\'onglet ⚽ Foot.</p>' : '') + IFIELDS[iShow].map(([k, l, rows]) => `<label>${l}</label>` + (rows ? `<textarea data-if="${k}" rows="${rows}" style="min-height:${rows * 26 + 24}px"></textarea>` : `<input data-if="${k}">`)).join('');
+  $$('[data-if]').forEach((el) => el.oninput = () => { iDirty = true; });
+  iDirty = false; iFill(true);
+}
+function iFill(force) {
+  const v = ST && ST.intros && ST.intros[iShow];
+  $('#iHint').textContent = v ? 'Les textes sont pris au lancement de l\'intro.' : '📴 OBS est fermé : ouvre OBS pour modifier les intros.';
+  if (!v || (iDirty && !force)) return;
+  $$('[data-if]').forEach((el) => { if (document.activeElement !== el) el.value = v[el.dataset.if] || ''; });
+}
+$$('[data-is]').forEach((b) => b.onclick = () => { iShow = b.dataset.is; $$('[data-is]').forEach((x) => x.classList.toggle('on', x === b)); iBuild(); });
+$('#iSend').onclick = () => {
+  if (!obsOn()) return toast('OBS est fermé', true);
+  const patch = {}; $$('[data-if]').forEach((el) => patch[el.dataset.if] = el.value);
+  cmd({ t: 'intro', show: iShow, patch }, 'Intro mise à jour ✅'); iDirty = false;
+};
+$('#iPlay').onclick = () => { if (iDirty) $('#iSend').onclick(); setTimeout(() => cmd({ t: 'scene', name: ISCENE[iShow] }, 'Intro lancée 🎬'), 400); };
+iBuild();
+setInterval(() => { if ($('#t-intros').classList.contains('on')) iFill(false); }, 2000);
 
 /* ---------- Discord ---------- */
 let dcReady = false;

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#06100b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="../kamei-console/icons/default-192.png">
+<link rel="apple-touch-icon" href="../kamei-console/icons/default-192.png">
+<title>Kamei Deck</title>
+<style>
+:root{--g:#39ff88;--g2:#14c96a;--bg:#050b08;--p:#0d1712;--p2:#14221b;--l:#22372b;--t:#eafff2;--m:#8fb9a2;--r:#ff3b5c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--t);font:15px/1.35 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{padding:calc(env(safe-area-inset-top) + 64px) 14px calc(env(safe-area-inset-bottom) + 86px)}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:rgba(5,11,8,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--l)}
+header img{height:30px}header b{font-size:18px;letter-spacing:.12em}
+.dot{width:10px;height:10px;border-radius:50%;background:#555;margin-left:auto;box-shadow:0 0 0 3px rgba(255,255,255,.05)}
+.dot.on{background:var(--g);box-shadow:0 0 12px var(--g)}
+#cur{font-size:12px;color:var(--m);max-width:42vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:rgba(5,11,8,.95);backdrop-filter:blur(12px);border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--m);font:600 12px inherit;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button span{font-size:22px}nav button.on{color:var(--g)}
+.tab{display:none}.tab.on{display:block}
+h2{font-size:13px;letter-spacing:.18em;color:var(--g);margin:18px 2px 10px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.key{position:relative;aspect-ratio:1;border-radius:18px;border:1px solid var(--l);background:linear-gradient(160deg,var(--p2),var(--p));color:var(--t);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font:600 12px inherit;padding:6px;text-align:center;transition:transform .08s}
+.key:active{transform:scale(.94)}
+.key i{font-style:normal;font-size:30px;line-height:1}
+.key.on{border-color:var(--g);background:linear-gradient(160deg,#0f4a2c,#08301c);box-shadow:0 0 18px rgba(57,255,136,.35)}
+.key.on:after{content:'EN DIRECT';position:absolute;top:6px;font-size:8px;letter-spacing:.15em;color:var(--g)}
+.card{background:var(--p);border:1px solid var(--l);border-radius:16px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--m);margin:10px 0 5px}
+label:first-child{margin-top:0}
+input,textarea,select{width:100%;background:#0a120e;border:1px solid var(--l);color:#fff;border-radius:10px;padding:11px 12px;font:inherit;font-size:16px}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+.btn{display:block;width:100%;margin-top:10px;border:1px solid #2d5a41;background:#16241c;color:var(--t);border-radius:12px;padding:13px 10px;font:700 15px inherit}
+.btn:active{transform:scale(.98)}
+.btn.g{background:var(--g);color:#06100b;border-color:var(--g)}
+.btn.r{border-color:#7a2333;color:#ffb3c0}
+.btn.on{background:var(--g);color:#06100b;border-color:var(--g)}
+.row .btn{margin-top:8px}
+.big{font-size:34px;font-weight:800;text-align:center;color:var(--g);font-variant-numeric:tabular-nums}
+.hint{font-size:13px;color:var(--m);margin:6px 2px}
+.chk{display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--t)}
+.chk input{width:22px;height:22px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translateX(-50%) translateY(20px);opacity:0;background:var(--g);color:#06100b;font-weight:700;padding:10px 18px;border-radius:999px;transition:.25s;z-index:9;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast.err{background:var(--r);color:#fff}
+.gate{max-width:420px;margin:30px auto;text-align:center}
+.gate img{width:180px;filter:drop-shadow(0 0 30px rgba(57,255,136,.5))}
+.answers input{margin-bottom:8px}
+</style></head>
+<body>
+<header><img src="../kamei-console/icons/default-192.png" alt=""><b>KAMEI DECK</b><span id="cur"></span><i class="dot" id="dot" title="OBS"></i></header>
+
+<!-- liaison -->
+<section class="tab" id="t-pair"><div class="gate">
+  <img src="../kamei-console/icons/default-192.png" alt="">
+  <h2>Relier à OBS</h2>
+  <p class="hint">Tape le <b>code de liaison</b> de ton OBS (il est dans le fichier <i>KameiTV/assets/deck-code.js</i> sur ton PC). Tu ne le tapes qu'une fois.</p>
+  <input id="code" placeholder="XXXX-XXXX" autocapitalize="characters" autocomplete="off" style="text-align:center;font-size:24px;letter-spacing:.2em">
+  <button class="btn g" id="pairBtn">Relier</button>
+</div></section>
+
+<!-- scènes -->
+<section class="tab" id="t-scenes">
+  <h2>Scènes</h2>
+  <div class="grid" id="scenes"></div>
+  <p class="hint" id="noobs">En attente d'OBS… Vérifie qu'OBS est ouvert avec la collection « Kamei TV ».</p>
+  <h2>Raccourcis</h2>
+  <div class="grid">
+    <button class="key" data-k="lt0"><i>🎙️</i>Bandeau présentateur</button>
+    <button class="key" data-k="lt1"><i>👤</i>Bandeau invité</button>
+    <button class="key" data-k="ltx"><i>🚫</i>Masquer bandeau</button>
+    <button class="key" data-k="timer"><i>⏱️</i><span id="kTimer">Chrono</span></button>
+    <button class="key" data-k="treset"><i>↺</i>Reset chrono</button>
+    <button class="key" data-k="poll"><i>📊</i>Sondage stream</button>
+    <button class="key" data-k="cd5"><i>⏳</i>Début dans 5 min</button>
+    <button class="key" data-k="itwlt"><i>🪪</i>Bandeau interview</button>
+    <button class="key" data-k="itwq"><i>❓</i>Question interview</button>
+  </div>
+</section>
+
+<!-- régie -->
+<section class="tab" id="t-regie">
+  <h2>Général</h2>
+  <div class="card">
+    <label>Jeu en cours</label><input data-p="game" placeholder="ex : Fortnite">
+    <label>Bandeau défilant (sépare avec •)</label><textarea data-p="ticker"></textarea>
+    <label>Prochain live (écran de fin)</label><input data-p="nextLive">
+    <button class="btn g" data-send="game,ticker,nextLive">Envoyer à OBS</button>
+    <label>Compte à rebours (écran de début)</label>
+    <div class="row"><button class="btn" data-cd="2">2 min</button><button class="btn" data-cd="5">5 min</button><button class="btn" data-cd="10">10 min</button><button class="btn r" data-cd="0">Stop</button></div>
+  </div>
+  <h2>L'Arène</h2>
+  <div class="card">
+    <label>Sujet du débat (à l'écran)</label><input data-p="topic">
+    <label>Présentateur — nom / rôle</label><div class="row"><input data-pp="0.name"><input data-pp="0.role"></div>
+    <label>Invité — nom / rôle</label><div class="row"><input data-pp="1.name"><input data-pp="1.role"></div>
+    <button class="btn g" data-send="topic,people">Envoyer à OBS</button>
+    <label>Bandeau nom</label>
+    <div class="row"><button class="btn" data-lt="0" id="lt0">Présentateur</button><button class="btn" data-lt="1" id="lt1">Invité</button><button class="btn r" data-lt="-1">Masquer</button></div>
+    <label>Temps de parole</label>
+    <div class="big" id="tm">02:00</div>
+    <div class="row"><button class="btn" data-dur="60">1 min</button><button class="btn" data-dur="120">2 min</button><button class="btn" data-dur="180">3 min</button></div>
+    <div class="row"><button class="btn g" id="tgo">▶ Lancer</button><button class="btn r" id="treset">Réinitialiser</button></div>
+    <label>Sondage du chat Twitch (1 / 2)</label>
+    <input data-pl="q" placeholder="La question"><div class="row" style="margin-top:8px"><input data-pl="a" placeholder="Réponse 1"><input data-pl="b" placeholder="Réponse 2"></div>
+    <button class="btn" data-send="poll">Envoyer la question</button>
+    <div class="row"><button class="btn" id="pv">Afficher</button><button class="btn r" id="preset">Remettre à zéro</button></div>
+  </div>
+  <h2>Interview</h2>
+  <div class="card">
+    <label>Invité — nom / fonction</label><div class="row"><input data-pi="guest"><input data-pi="role"></div>
+    <label>Question à l'écran</label><input data-pi="question">
+    <button class="btn g" data-send="itw">Envoyer à OBS</button>
+    <div class="row"><button class="btn" id="itwlt">Bandeau nom</button><button class="btn" id="itwq">Question</button></div>
+  </div>
+</section>
+
+<!-- discord -->
+<section class="tab" id="t-discord">
+  <div id="login" class="card" style="display:none">
+    <label>Pseudo ou email Kamei Console</label><input id="lid" autocomplete="username">
+    <label>Mot de passe</label><input id="lpw" type="password" autocomplete="current-password">
+    <button class="btn g" id="lgo">Se connecter</button>
+    <p class="hint">Le même compte que dans Kamei Console. Réservé à l'admin et aux responsables Kamei TV.</p>
+  </div>
+  <div id="dc" style="display:none">
+    <h2>Salon Discord</h2>
+    <div class="card"><select id="chan"></select></div>
+    <h2>🏟️ Débat de L'Arène</h2>
+    <div class="card">
+      <label>Le sujet</label><input id="dS" placeholder="ex : Les réseaux sociaux nous isolent ?">
+      <div class="row"><div><label>Réponse 1</label><input id="dA" value="Pour"></div><div><label>Réponse 2</label><input id="dB" value="Contre"></div></div>
+      <label>Durée</label><select id="dH"><option value="1">1 heure</option><option value="3">3 heures</option><option value="24" selected>24 heures</option><option value="72">3 jours</option><option value="168">7 jours</option></select>
+      <label class="chk"><input type="checkbox" id="dObs" checked> Afficher aussi le sujet et le sondage sur le stream</label>
+      <button class="btn g" id="dGo">🚀 Lancer le débat sur Discord</button>
+    </div>
+    <h2>📊 Sondage</h2>
+    <div class="card">
+      <label>La question</label><input id="sQ">
+      <label>Réponses (2 à 5)</label>
+      <div class="answers"><input class="sA" placeholder="Réponse 1"><input class="sA" placeholder="Réponse 2"><input class="sA" placeholder="Réponse 3 (optionnel)"><input class="sA" placeholder="Réponse 4 (optionnel)"><input class="sA" placeholder="Réponse 5 (optionnel)"></div>
+      <label>Durée</label><select id="sH"><option value="1">1 heure</option><option value="3">3 heures</option><option value="24" selected>24 heures</option><option value="72">3 jours</option><option value="168">7 jours</option></select>
+      <label class="chk"><input type="checkbox" id="sM"> Plusieurs réponses possibles</label>
+      <button class="btn g" id="sGo">📨 Envoyer le sondage sur Discord</button>
+    </div>
+    <button class="btn r" id="logout" style="margin-top:24px">Se déconnecter</button>
+  </div>
+</section>
+
+<nav id="nav" style="display:none">
+  <button data-t="scenes" class="on"><span>🎬</span>Scènes</button>
+  <button data-t="regie"><span>🎛️</span>Régie</button>
+  <button data-t="discord"><span>💬</span>Discord</button>
+</nav>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SB_URL = 'https://nbhfagjmtmzpvxajgxga.supabase.co', SB_KEY = 'sb_publishable_9vA0LkKaCl_ofBtmOuJBDg_7jOGF-a0';
+const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+let ch = null, ST = null, lastSeen = 0;
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+function toast(t, err) { const e = $('#toast'); e.textContent = t; e.className = 'on' + (err ? ' err' : ''); clearTimeout(e._t); e._t = setTimeout(() => e.className = '', 2200); }
+function buzz() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
+const mmss = (s) => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+
+/* ---------- onglets ---------- */
+function show(t) { $$('.tab').forEach((x) => x.classList.toggle('on', x.id === 't-' + t)); $$('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); if (t === 'discord') initDiscord(); window.scrollTo(0, 0); }
+$$('nav button').forEach((b) => b.onclick = () => show(b.dataset.t));
+
+/* ---------- liaison avec OBS (Supabase Realtime) ---------- */
+async function topic(code) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('kamei-deck:' + code.toUpperCase().replace(/\s/g, '')));
+  return 'kdeck-' + [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
+async function connect(code) {
+  if (ch) { sb.removeChannel(ch); ch = null; }
+  ch = sb.channel(await topic(code), { config: { broadcast: { self: false } } });
+  ch.on('broadcast', { event: 'status' }, ({ payload }) => { ST = payload; lastSeen = Date.now(); paint(); });
+  ch.subscribe((s) => { if (s === 'SUBSCRIBED') ch.send({ type: 'broadcast', event: 'hello', payload: {} }); });
+  $('#nav').style.display = 'flex'; show('scenes');
+}
+function cmd(c, ok) {
+  if (!ch) return; buzz();
+  ch.send({ type: 'broadcast', event: 'cmd', payload: c });
+  if (Date.now() - lastSeen > 30000) toast('OBS ne répond pas… il est ouvert ?', true); else if (ok) toast(ok);
+}
+$('#pairBtn').onclick = () => { const c = $('#code').value.trim().toUpperCase(); if (c.length < 6) return toast('Code trop court', true); LS('kdeck-code', c); connect(c); };
+setInterval(() => { $('#dot').classList.toggle('on', Date.now() - lastSeen < 35000); if (ch && Date.now() - lastSeen > 20000) ch.send({ type: 'broadcast', event: 'hello', payload: {} }); }, 5000);
+
+/* ---------- affichage de l'état ---------- */
+function timerSecs(t) { return t.acc + (t.running ? (Date.now() - t.startedAt) / 1000 : 0); }
+function paint() {
+  if (!ST) return;
+  $('#noobs').style.display = ST.scenes && ST.scenes.length ? 'none' : '';
+  $('#cur').textContent = ST.current ? '● ' + ST.current : '';
+  const g = $('#scenes');
+  const names = (ST.scenes || []).map((s) => s.name);
+  if (g.dataset.k !== names.join('|')) {
+    g.dataset.k = names.join('|');
+    g.innerHTML = '';
+    for (const n of names) {
+      const m = n.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u);
+      const b = document.createElement('button'); b.className = 'key'; b.dataset.scene = n;
+      b.innerHTML = `<i>${m ? m[1] : '🎬'}</i>${(m ? m[2] : n).replace(/[<>&]/g, '')}`;
+      b.onclick = () => cmd({ t: 'scene', name: n });
+      g.appendChild(b);
+    }
+  }
+  $$('#scenes .key').forEach((b) => b.classList.toggle('on', !!(b.dataset.scene === ST.current)));
+  const S = ST.state || {};
+  // remplit les champs (sauf celui qu'on est en train de taper)
+  const set = (el, v) => { if (document.activeElement !== el && v !== undefined && el.value !== String(v)) el.value = v; };
+  $$('[data-p]').forEach((el) => set(el, S[el.dataset.p]));
+  $$('[data-pp]').forEach((el) => { const [i, f] = el.dataset.pp.split('.'); set(el, S.people && S.people[i] && S.people[i][f]); });
+  $$('[data-pl]').forEach((el) => set(el, S.poll && S.poll[el.dataset.pl]));
+  $$('[data-pi]').forEach((el) => set(el, S.itw && S.itw[el.dataset.pi]));
+  const lt = S.lt || {};
+  $('#lt0').classList.toggle('on', !!(lt.visible && lt.who === 0)); $('#lt1').classList.toggle('on', !!(lt.visible && lt.who === 1));
+  $('[data-k=lt0]').classList.toggle('on', !!(lt.visible && lt.who === 0)); $('[data-k=lt1]').classList.toggle('on', !!(lt.visible && lt.who === 1));
+  const pv = S.poll && S.poll.visible; $('#pv').classList.toggle('on', !!(pv)); $('#pv').textContent = pv ? 'Affiché' : 'Afficher'; $('[data-k=poll]').classList.toggle('on', !!(pv));
+  const it = S.itw || {}; $('#itwlt').classList.toggle('on', !!(it.ltVisible)); $('#itwq').classList.toggle('on', !!(it.qVisible));
+  $('[data-k=itwlt]').classList.toggle('on', !!(it.ltVisible)); $('[data-k=itwq]').classList.toggle('on', !!(it.qVisible));
+  $('#tgo').textContent = S.timer && S.timer.running ? '⏸ Pause' : '▶ Lancer'; $('[data-k=timer]').classList.toggle('on', !!(S.timer && S.timer.running));
+}
+setInterval(() => {
+  if (!ST || !ST.state || !ST.state.timer) return;
+  const t = ST.state.timer, l = t.dur - timerSecs(t), txt = l >= 0 ? mmss(l) : '+' + mmss(-l);
+  $('#tm').textContent = txt; $('#kTimer').textContent = t.running || t.acc ? txt : 'Chrono';
+}, 250);
+
+/* ---------- régie ---------- */
+$$('[data-send]').forEach((b) => b.onclick = () => {
+  const patch = {};
+  for (const k of b.dataset.send.split(',')) {
+    if (k === 'people') patch.people = [0, 1].map((i) => ({ name: $(`[data-pp="${i}.name"]`).value, role: $(`[data-pp="${i}.role"]`).value }));
+    else if (k === 'poll') patch.poll = Object.fromEntries($$('[data-pl]').map((e) => [e.dataset.pl, e.value]));
+    else if (k === 'itw') patch.itw = Object.fromEntries($$('[data-pi]').map((e) => [e.dataset.pi, e.value]));
+    else patch[k] = $(`[data-p="${k}"]`).value;
+  }
+  cmd({ t: 'patch', patch }, 'Envoyé ✅');
+});
+$$('[data-cd]').forEach((b) => b.onclick = () => cmd({ t: 'countdown', min: +b.dataset.cd }, +b.dataset.cd ? 'Compte à rebours lancé' : 'Compte à rebours arrêté'));
+$$('[data-lt]').forEach((b) => b.onclick = () => cmd({ t: 'lt', who: +b.dataset.lt }));
+$$('[data-dur]').forEach((b) => b.onclick = () => cmd({ t: 'timer', op: 'dur', s: +b.dataset.dur }, 'Durée : ' + b.textContent));
+$('#tgo').onclick = () => cmd({ t: 'timer', op: 'toggle' });
+$('#treset').onclick = () => cmd({ t: 'timer', op: 'reset' });
+$('#pv').onclick = () => cmd({ t: 'poll', op: 'toggle' });
+$('#preset').onclick = () => cmd({ t: 'poll', op: 'reset' }, 'Votes remis à zéro');
+$('#itwlt').onclick = () => cmd({ t: 'itw', f: 'ltVisible' });
+$('#itwq').onclick = () => cmd({ t: 'itw', f: 'qVisible' });
+const KEYS = { lt0: { t: 'lt', who: 0 }, lt1: { t: 'lt', who: 1 }, ltx: { t: 'lt', who: -1 }, timer: { t: 'timer', op: 'toggle' }, treset: { t: 'timer', op: 'reset' },
+  poll: { t: 'poll', op: 'toggle' }, cd5: { t: 'countdown', min: 5 }, itwlt: { t: 'itw', f: 'ltVisible' }, itwq: { t: 'itw', f: 'qVisible' } };
+$$('[data-k]').forEach((b) => b.onclick = () => cmd(KEYS[b.dataset.k]));
+
+/* ---------- Discord ---------- */
+let dcReady = false;
+async function initDiscord() {
+  const { data } = await sb.auth.getSession();
+  $('#login').style.display = data.session ? 'none' : ''; $('#dc').style.display = data.session ? '' : 'none';
+  if (!data.session || dcReady) return;
+  const r = await sb.functions.invoke('kamei-discord', { body: { action: 'deck_channels' } });
+  if (r.error) { toast(/403/.test(String(r.error.context && r.error.context.status)) ? 'Compte sans accès Kamei TV' : 'Impossible de lire les salons', true); return; }
+  const sel = $('#chan'); sel.innerHTML = '';
+  for (const c of r.data.channels) { const o = document.createElement('option'); o.value = c.id; o.textContent = '# ' + c.name; sel.appendChild(o); }
+  const saved = LS('kdeck-chan'), arene = r.data.channels.find((c) => /ar[eè]ne/i.test(c.name));
+  sel.value = saved && r.data.channels.some((c) => c.id === saved) ? saved : arene ? arene.id : sel.value;
+  sel.onchange = () => LS('kdeck-chan', sel.value);
+  dcReady = true;
+}
+$('#lgo').onclick = async () => {
+  let id = $('#lid').value.trim(); const pw = $('#lpw').value;
+  try {
+    if (!id.includes('@')) { const r = await sb.rpc('login_email', { p: id }); if (r.error || !r.data) throw new Error('Pseudo inconnu ou sans mot de passe'); id = r.data; }
+    const r = await sb.auth.signInWithPassword({ email: id, password: pw }); if (r.error) throw r.error;
+    $('#lpw').value = ''; toast('Connecté ✅'); initDiscord();
+  } catch (e) { toast(e.message || 'Connexion impossible', true); }
+};
+$('#logout').onclick = async () => { await sb.auth.signOut(); dcReady = false; initDiscord(); };
+async function post(body, okMsg) {
+  buzz();
+  const r = await sb.functions.invoke('kamei-discord', { body: { action: 'deck_post', channel: $('#chan').value, ...body } });
+  if (r.error || !r.data || !r.data.ok) { toast("Échec de l'envoi sur Discord", true); return false; }
+  toast(okMsg); return true;
+}
+$('#dGo').onclick = async () => {
+  const q = $('#dS').value.trim(), a = $('#dA').value.trim() || 'Pour', b = $('#dB').value.trim() || 'Contre';
+  if (!q) return toast('Écris le sujet du débat', true);
+  if (await post({ kind: 'debat', question: q, answers: [a, b], hours: +$('#dH').value }, 'Débat lancé sur Discord 🏟️') && $('#dObs').checked && ch) {
+    cmd({ t: 'patch', patch: { topic: q, poll: { q, a: a.toUpperCase(), b: b.toUpperCase() } } });
+    cmd({ t: 'poll', op: 'reset' }); cmd({ t: 'poll', op: 'show' });
+  }
+};
+$('#sGo').onclick = async () => {
+  const q = $('#sQ').value.trim(), answers = $$('.sA').map((e) => e.value.trim()).filter(Boolean);
+  if (!q) return toast('Écris la question', true);
+  if (answers.length < 2) return toast('Il faut au moins 2 réponses', true);
+  if (await post({ kind: 'sondage', question: q, answers, hours: +$('#sH').value, multi: $('#sM').checked }, 'Sondage envoyé 📊')) { $('#sQ').value = ''; $$('.sA').forEach((e) => e.value = ''); }
+};
+
+/* ---------- démarrage ---------- */
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+const saved = LS('kdeck-code');
+if (saved) connect(saved); else show('pair');
+</script>
+</body></html>

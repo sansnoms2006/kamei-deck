@@ -200,7 +200,7 @@ function paint() {
   $('#noobs').style.display = ST.scenes && ST.scenes.length ? 'none' : '';
   $('#cur').textContent = ST.current ? '● ' + ST.current : '';
   const g = $('#scenes');
-  const names = (ST.scenes || []).map((s) => s.name);
+  const names = (ST.scenes || []).map((s) => (typeof s === 'string' ? s : s.name));
   if (g.dataset.k !== names.join('|')) {
     g.dataset.k = names.join('|');
     g.innerHTML = '';

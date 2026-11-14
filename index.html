@@ -166,6 +166,15 @@ input[type=color]{padding:4px;height:46px}
     <div class="row"><button class="btn" data-fto="home" id="fToH">Temps mort DOM</button><button class="btn" data-fto="away" id="fToA">Temps mort EXT</button></div>
   </div>
 
+  <h2>Discord · pronos & résultat</h2>
+  <div class="card">
+    <p class="hint" id="fDcInfo" style="margin-top:0">Connecte-toi dans l'onglet 💬 Discord pour utiliser ces boutons.</p>
+    <div class="row"><button class="btn" id="fPOpen">🔮 Ouvrir les pronos</button><button class="btn r" id="fPClose">🔒 Fermer</button></div>
+    <button class="btn g" id="fPub">📣 Publier le résultat sur Discord</button>
+    <label class="chk" style="margin-top:12px"><input type="checkbox" id="fAutoPub" checked> Publier tout seul quand je passe sur la scène « Foot · Fin »</label>
+    <p class="hint">Les pronos se ferment tout seuls au coup d'envoi. Score exact = 3 pts, bon vainqueur = 1 pt.</p>
+  </div>
+
   <h2>Feuille de match</h2>
   <div class="card">
     <div class="ev" id="fEv"></div>
@@ -219,6 +228,13 @@ input[type=color]{padding:4px;height:46px}
       <label class="chk"><input type="checkbox" id="sM"> Plusieurs réponses possibles</label>
       <button class="btn g" id="sGo">📨 Envoyer le sondage sur Discord</button>
     </div>
+    <h2>📅 Planning de la semaine</h2>
+    <div class="card">
+      <label>Titre</label><input id="plT" placeholder="Cette semaine sur Kamei TV">
+      <label>Un live par ligne</label><textarea id="plL" style="min-height:130px" placeholder="Lundi 20h — Fortnite avec Abeka&#10;Mercredi 21h — L'Arène : débat&#10;Samedi 15h — Futsal en direct"></textarea>
+      <label class="chk"><input type="checkbox" id="plA" checked> Publier tout seul chaque dimanche à 19 h</label>
+      <div class="row"><button class="btn" id="plSave">💾 Enregistrer</button><button class="btn g" id="plPost">📣 Publier maintenant</button></div>
+    </div>
     <button class="btn r" id="logout" style="margin-top:24px">Se déconnecter</button>
   </div>
 </section>
@@ -243,7 +259,7 @@ function buzz() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) 
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
 /* ---------- onglets ---------- */
-function show(t) { $$('.tab').forEach((x) => x.classList.toggle('on', x.id === 't-' + t)); $$('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); if (t === 'discord') initDiscord(); window.scrollTo(0, 0); }
+function show(t) { $$('.tab').forEach((x) => x.classList.toggle('on', x.id === 't-' + t)); $$('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); if (t === 'discord') initDiscord(); if (t === 'foot') loadAuto(); window.scrollTo(0, 0); }
 $$('nav button').forEach((b) => b.onclick = () => show(b.dataset.t));
 
 /* ---------- liaison avec OBS (Supabase Realtime) ---------- */
@@ -399,6 +415,7 @@ async function initDiscord() {
   sel.value = saved && r.data.channels.some((c) => c.id === saved) ? saved : arene ? arene.id : sel.value;
   sel.onchange = () => LS('kdeck-chan', sel.value);
   dcReady = true;
+  loadAuto();
 }
 $('#lgo').onclick = async () => {
   let id = $('#lid').value.trim(); const pw = $('#lpw').value;
@@ -408,6 +425,47 @@ $('#lgo').onclick = async () => {
     $('#lpw').value = ''; toast('Connecté ✅'); initDiscord();
   } catch (e) { toast(e.message || 'Connexion impossible', true); }
 };
+
+/* ---------- automatisations du bot ---------- */
+async function auto(body, okMsg, quiet) {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { if (!quiet) toast('Connecte-toi d\'abord dans l\'onglet Discord', true); return null; }
+  if (!quiet) buzz();
+  const r = await sb.functions.invoke('kamei-discord', { body });
+  if (r.error || !r.data || r.data.error) { if (!quiet) toast('Échec : ' + ((r.data && r.data.error) || 'Discord'), true); return null; }
+  if (okMsg && !quiet) toast(okMsg);
+  return r.data;
+}
+async function loadAuto() {
+  const d = await auto({ action: 'planning_get' }, null, true);
+  if (!d) return;
+  $('#fDcInfo').textContent = d.pronos ? (d.pronos.open ? `Pronos ouverts : ${d.pronos.n} prono(s) pour ${d.pronos.home.name} vs ${d.pronos.away.name}.` : 'Pronos fermés.') : 'Aucun prono pour l\'instant.';
+  const P = d.planning || {};
+  if (document.activeElement !== $('#plL')) $('#plL').value = (P.lines || []).join('\n');
+  if (document.activeElement !== $('#plT')) $('#plT').value = P.title || '';
+  $('#plA').checked = P.auto !== false;
+}
+$('#fPOpen').onclick = async () => { if (!FS) return toast('OBS ne répond pas', true); if (await auto({ action: 'prono_open', home: FS.home, away: FS.away }, 'Pronos ouverts sur Discord 🔮')) loadAuto(); };
+$('#fPClose').onclick = async () => { if (await auto({ action: 'prono_close' }, 'Pronos fermés 🔒')) loadAuto(); };
+$('#fPub').onclick = () => { if (FS) auto({ action: 'foot_result', foot: FS }, 'Résultat publié sur Discord 📣').then(loadAuto); };
+$('#fAutoPub').checked = LS('kdeck-autopub') !== '0';
+$('#fAutoPub').onchange = () => LS('kdeck-autopub', $('#fAutoPub').checked ? '1' : '0');
+// coup d'envoi → pronos fermés ; scène « Foot · Fin » → résultat publié
+let lastScene = null, lastRunning = false;
+setInterval(() => {
+  if (!ST || !FS) return;
+  const running = !!FS.clock.running;
+  if (running && !lastRunning && FS.period === 1 && FS.clock.acc < 5) auto({ action: 'prono_close' }, null, true);
+  lastRunning = running;
+  if (ST.current !== lastScene) {
+    if (lastScene !== null && /foot/i.test(ST.current || '') && /fin/i.test(ST.current || '') && $('#fAutoPub').checked)
+      auto({ action: 'foot_result', foot: FS, auto: true }, 'Résultat publié sur Discord 📣');
+    lastScene = ST.current;
+  }
+}, 1000);
+$('#plSave').onclick = () => auto({ action: 'planning_save', title: $('#plT').value.trim(), lines: $('#plL').value.split('\n'), auto: $('#plA').checked }, 'Planning enregistré 💾');
+$('#plPost').onclick = async () => { if (await auto({ action: 'planning_save', title: $('#plT').value.trim(), lines: $('#plL').value.split('\n'), auto: $('#plA').checked }, null)) auto({ action: 'planning_post' }, 'Planning publié 📅'); };
+
 $('#logout').onclick = async () => { await sb.auth.signOut(); dcReady = false; initDiscord(); };
 async function post(body, okMsg) {
   buzz();

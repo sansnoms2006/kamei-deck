@@ -50,6 +50,15 @@ textarea{min-height:70px;resize:vertical}
 .gate{max-width:420px;margin:30px auto;text-align:center}
 .gate img{width:180px;filter:drop-shadow(0 0 30px rgba(57,255,136,.5))}
 .answers input{margin-bottom:8px}
+.fsc{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:6px}
+.fsc .n{font-size:54px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}.fsc .t{font-weight:800;letter-spacing:.12em;font-size:13px}
+.fsc .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.btn.y{border-color:#8a6a12;color:#ffe08a}.btn.big{font-size:19px;padding:16px}
+.btn.rp{background:#ffc23d;color:#06100b;border-color:#ffc23d;font-size:19px;padding:16px}
+.seg{display:flex;gap:6px}.seg .btn{margin-top:8px;padding:11px 4px;font-size:14px}
+.ev{font-size:15px;line-height:1.8}.ev b{color:var(--g)}
+input[type=color]{padding:4px;height:46px}
+
 </style></head>
 <body>
 <header><img src="../kamei-console/icons/default-192.png" alt=""><b>KAMEI DECK</b><span id="cur"></span><i class="dot" id="dot" title="OBS"></i></header>
@@ -119,6 +128,69 @@ textarea{min-height:70px;resize:vertical}
   </div>
 </section>
 
+<!-- foot -->
+<section class="tab" id="t-foot">
+  <div class="card">
+    <div class="fsc">
+      <div><div class="t" id="fHT"><span class="sw"></span>DOM</div><div class="n" id="fHS">0</div></div><div style="font-size:30px;opacity:.35">-</div>
+      <div><div class="t" id="fAT"><span class="sw"></span>EXT</div><div class="n" id="fAS">0</div></div>
+    </div>
+    <div class="big" id="fClk" style="margin-top:10px">20:00</div>
+    <div class="hint" id="fPer" style="text-align:center;margin-top:0">1re mi-temps</div>
+    <label>Buteur (facultatif)</label><input id="fScorer" list="fPlayers" placeholder="ex : #10 Abel">
+    <div class="row"><button class="btn g big" data-goal="home" id="fGH">⚽ BUT</button><button class="btn g big" data-goal="away" id="fGA">⚽ BUT</button></div>
+    <div class="seg"><button class="btn" data-fs="home,-1">− dom</button><button class="btn" data-fs="home,1">+ dom</button><button class="btn" data-fs="away,-1">− ext</button><button class="btn" data-fs="away,1">+ ext</button></div>
+    <button class="btn rp" id="fReplay">⟲ REPLAY DE L'ACTION</button>
+  </div>
+
+  <h2>Chrono</h2>
+  <div class="card">
+    <div class="row"><button class="btn g big" id="fGo">▶ Démarrer</button></div>
+    <div class="seg"><button class="btn" data-adj="-60">−1 min</button><button class="btn" data-adj="-10">−10 s</button><button class="btn" data-adj="10">+10 s</button><button class="btn" data-adj="60">+1 min</button></div>
+    <div class="seg"><button class="btn" data-per="1">1re MT</button><button class="btn" data-per="2">2e MT</button><button class="btn" data-per="3">Prol.</button></div>
+    <label>Durée d'une mi-temps (minutes) — c'est toi qui choisis</label>
+    <div class="row"><input id="fDur" type="number" inputmode="numeric" min="1" max="90" value="20"><button class="btn" id="fDurOk" style="margin-top:0">Appliquer</button></div>
+    <div class="seg"><button class="btn" data-durq="10">10</button><button class="btn" data-durq="15">15</button><button class="btn" data-durq="20">20</button><button class="btn" data-durq="25">25</button><button class="btn" data-durq="45">45</button></div>
+    <label class="chk" style="margin-top:12px"><input type="checkbox" id="fDown"> Chrono en décompte (20:00 → 00:00)</label>
+    <button class="btn r" id="fClkReset">Remettre le chrono à zéro</button>
+    <p class="hint">Changer de mi-temps remet le chrono, les fautes et les temps morts à zéro.</p>
+  </div>
+
+  <h2>Cartons · fautes · temps morts</h2>
+  <div class="card">
+    <label>Joueur</label><input id="fCardPl" list="fPlayers" placeholder="ex : #7 Yanis">
+    <div class="seg"><button class="btn on" data-cs="home" id="fCsH">DOM</button><button class="btn" data-cs="away" id="fCsA">EXT</button></div>
+    <div class="row"><button class="btn y big" data-card="yellow">🟨 Jaune</button><button class="btn r big" data-card="red">🟥 Rouge</button></div>
+    <label>Fautes — <span id="fFH">0</span> / <span id="fFA">0</span></label>
+    <div class="seg"><button class="btn" data-ff="home,-1">−</button><button class="btn" data-ff="home,1" id="fFbH">+ faute DOM</button><button class="btn" data-ff="away,1" id="fFbA">+ faute EXT</button><button class="btn" data-ff="away,-1">−</button></div>
+    <div class="row"><button class="btn" data-fto="home" id="fToH">Temps mort DOM</button><button class="btn" data-fto="away" id="fToA">Temps mort EXT</button></div>
+  </div>
+
+  <h2>Feuille de match</h2>
+  <div class="card">
+    <div class="ev" id="fEv"></div>
+    <button class="btn r" id="fUndo">Annuler le dernier événement</button>
+  </div>
+
+  <h2>Équipes & compositions</h2>
+  <div class="card">
+    <label>Compétition</label><input data-ft="comp">
+    <label>Lieu</label><input data-ft="venue">
+    <label>Domicile — nom / sigle / couleur</label>
+    <div class="row"><input data-ft="home.name" style="flex:3"><input data-ft="home.short" maxlength="4"><input type="color" data-ft="home.color"></div>
+    <label>Composition domicile (un joueur par ligne)</label><textarea data-ft="home.players" placeholder="#1 Mehdi&#10;#10 Abel"></textarea>
+    <label>Extérieur — nom / sigle / couleur</label>
+    <div class="row"><input data-ft="away.name" style="flex:3"><input data-ft="away.short" maxlength="4"><input type="color" data-ft="away.color"></div>
+    <label>Composition extérieur</label><textarea data-ft="away.players"></textarea>
+    <button class="btn g" id="fTeams">Envoyer à OBS</button>
+    <label>Bandeau nom (homme du match, coach…)</label>
+    <div class="row"><input id="fLtN" placeholder="Nom"><input id="fLtR" placeholder="Rôle"></div>
+    <div class="row"><button class="btn" id="fLtOn">Afficher</button><button class="btn r" id="fLtOff">Masquer</button></div>
+    <button class="btn r" id="fNew" style="margin-top:22px">Nouveau match (tout remettre à zéro)</button>
+  </div>
+  <datalist id="fPlayers"></datalist>
+</section>
+
 <!-- discord -->
 <section class="tab" id="t-discord">
   <div id="login" class="card" style="display:none">
@@ -154,6 +226,7 @@ textarea{min-height:70px;resize:vertical}
 <nav id="nav" style="display:none">
   <button data-t="scenes" class="on"><span>🎬</span>Scènes</button>
   <button data-t="regie"><span>🎛️</span>Régie</button>
+  <button data-t="foot"><span>⚽</span>Foot</button>
   <button data-t="discord"><span>💬</span>Discord</button>
 </nav>
 <div id="toast"></div>
@@ -226,6 +299,7 @@ function paint() {
   const pv = S.poll && S.poll.visible; $('#pv').classList.toggle('on', !!(pv)); $('#pv').textContent = pv ? 'Affiché' : 'Afficher'; $('[data-k=poll]').classList.toggle('on', !!(pv));
   const it = S.itw || {}; $('#itwlt').classList.toggle('on', !!(it.ltVisible)); $('#itwq').classList.toggle('on', !!(it.qVisible));
   $('[data-k=itwlt]').classList.toggle('on', !!(it.ltVisible)); $('[data-k=itwq]').classList.toggle('on', !!(it.qVisible));
+  paintFoot();
   $('#tgo').textContent = S.timer && S.timer.running ? '⏸ Pause' : '▶ Lancer'; $('[data-k=timer]').classList.toggle('on', !!(S.timer && S.timer.running));
 }
 setInterval(() => {
@@ -257,6 +331,59 @@ $('#itwq').onclick = () => cmd({ t: 'itw', f: 'qVisible' });
 const KEYS = { lt0: { t: 'lt', who: 0 }, lt1: { t: 'lt', who: 1 }, ltx: { t: 'lt', who: -1 }, timer: { t: 'timer', op: 'toggle' }, treset: { t: 'timer', op: 'reset' },
   poll: { t: 'poll', op: 'toggle' }, cd5: { t: 'countdown', min: 5 }, itwlt: { t: 'itw', f: 'ltVisible' }, itwq: { t: 'itw', f: 'qVisible' } };
 $$('[data-k]').forEach((b) => b.onclick = () => cmd(KEYS[b.dataset.k]));
+
+
+/* ---------- Foot ---------- */
+let FS = null, cardSide = 'home';
+const F = (c, ok) => cmd({ t: 'foot', c }, ok);
+const per = (p) => p === 1 ? '1re mi-temps' : p === 2 ? '2e mi-temps' : 'Prolongation';
+function fClock(c) { const el = c.acc + (c.running ? (Date.now() - c.startedAt) / 1000 : 0); return c.down ? Math.max(0, c.dur - el) : el; }
+function paintFoot() {
+  if (!ST || !ST.foot) return; FS = ST.foot;
+  const H = FS.home, A = FS.away, esc = (t) => String(t || '').replace(/[<>&"]/g, '');
+  $('#fHT').innerHTML = `<span class="sw" style="background:${esc(H.color)}"></span>${esc(H.short)}`;
+  $('#fAT').innerHTML = `<span class="sw" style="background:${esc(A.color)}"></span>${esc(A.short)}`;
+  $('#fHS').textContent = H.score; $('#fAS').textContent = A.score;
+  $('#fGH').textContent = '⚽ BUT ' + H.short; $('#fGA').textContent = '⚽ BUT ' + A.short;
+  $('#fCsH').textContent = H.short; $('#fCsA').textContent = A.short;
+  $('#fFH').textContent = H.short + ' ' + H.fouls; $('#fFA').textContent = A.short + ' ' + A.fouls;
+  $('#fFbH').textContent = '+ faute ' + H.short; $('#fFbA').textContent = '+ faute ' + A.short;
+  $('#fToH').textContent = 'Temps mort ' + H.short; $('#fToA').textContent = 'Temps mort ' + A.short;
+  $('#fToH').classList.toggle('on', !!H.to); $('#fToA').classList.toggle('on', !!A.to);
+  $('#fPer').textContent = per(FS.period);
+  $$('[data-per]').forEach((b) => b.classList.toggle('on', +b.dataset.per === FS.period));
+  $('#fGo').textContent = FS.clock.running ? '⏸ Pause' : '▶ Démarrer';
+  if (document.activeElement !== $('#fDur')) $('#fDur').value = Math.round(FS.clock.dur / 60);
+  $('#fDown').checked = !!FS.clock.down;
+  $('#fEv').innerHTML = (FS.events || []).map((e) => (e.t === 'goal' ? '⚽' : e.color === 'red' ? '🟥' : '🟨') + ` <b>${e.min}'</b> ${esc((FS[e.side] || {}).short)} — ${esc(e.who) || (e.t === 'goal' ? 'But' : 'Carton')}`).join('<br>') || '<span class="hint">Aucun but ni carton pour l\'instant.</span>';
+  const set = (el, v) => { if (document.activeElement !== el && v !== undefined && el.value !== String(v)) el.value = v; };
+  $$('[data-ft]').forEach((el) => set(el, el.dataset.ft.split('.').reduce((o, k) => o && o[k], FS)));
+  $('#fPlayers').innerHTML = (H.players + '\n' + A.players).split('\n').map((x) => x.trim()).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join('');
+}
+setInterval(() => { if (FS) $('#fClk').textContent = mmss(fClock(FS.clock)); }, 250);
+$$('[data-goal]').forEach((b) => b.onclick = () => { F({ op: 'goal', side: b.dataset.goal, scorer: $('#fScorer').value.trim() }, 'BUT ! ⚽'); $('#fScorer').value = ''; });
+$$('[data-fs]').forEach((b) => b.onclick = () => { const [side, d] = b.dataset.fs.split(','); F({ op: 'score', side, d: +d }); });
+$$('[data-ff]').forEach((b) => b.onclick = () => { const [side, d] = b.dataset.ff.split(','); F({ op: 'foul', side, d: +d }); });
+$$('[data-fto]').forEach((b) => b.onclick = () => F({ op: 'to', side: b.dataset.fto }));
+$$('[data-cs]').forEach((b) => b.onclick = () => { cardSide = b.dataset.cs; $$('[data-cs]').forEach((x) => x.classList.toggle('on', x === b)); });
+$$('[data-card]').forEach((b) => b.onclick = () => { F({ op: 'card', side: cardSide, player: $('#fCardPl').value.trim(), color: b.dataset.card }, b.dataset.card === 'red' ? 'Carton rouge 🟥' : 'Carton jaune 🟨'); $('#fCardPl').value = ''; });
+$$('[data-adj]').forEach((b) => b.onclick = () => F({ op: 'clock', a: 'adj', d: +b.dataset.adj }));
+$$('[data-per]').forEach((b) => b.onclick = () => F({ op: 'period', p: +b.dataset.per }, per(+b.dataset.per)));
+$$('[data-durq]').forEach((b) => b.onclick = () => { $('#fDur').value = b.dataset.durq; F({ op: 'clock', a: 'dur', min: +b.dataset.durq }, 'Mi-temps de ' + b.dataset.durq + ' min'); });
+$('#fDurOk').onclick = () => F({ op: 'clock', a: 'dur', min: +$('#fDur').value }, 'Mi-temps de ' + $('#fDur').value + ' min');
+$('#fDown').onchange = () => F({ op: 'clock', a: 'down', v: $('#fDown').checked });
+$('#fGo').onclick = () => F({ op: 'clock', a: 'toggle' });
+$('#fClkReset').onclick = () => F({ op: 'clock', a: 'reset' }, 'Chrono remis à zéro');
+$('#fReplay').onclick = () => F({ op: 'replay' }, 'Replay ⟲');
+$('#fUndo').onclick = () => F({ op: 'undo' }, 'Dernier événement annulé');
+$('#fTeams').onclick = () => {
+  const c = { op: 'teams', home: {}, away: {} };
+  $$('[data-ft]').forEach((el) => { const [a, b] = el.dataset.ft.split('.'); if (b) c[a][b] = el.value; else c[a] = el.value; });
+  F(c, 'Équipes envoyées ✅');
+};
+$('#fLtOn').onclick = () => F({ op: 'lt', visible: true, name: $('#fLtN').value.trim(), role: $('#fLtR').value.trim() });
+$('#fLtOff').onclick = () => F({ op: 'lt', visible: false });
+$('#fNew').onclick = () => { if (confirm('Remettre le match à zéro (score, fautes, chrono, feuille de match) ?')) F({ op: 'new' }, 'Nouveau match'); };
 
 /* ---------- Discord ---------- */
 let dcReady = false;

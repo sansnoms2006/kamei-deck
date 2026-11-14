@@ -130,6 +130,7 @@ input[type=color]{padding:4px;height:46px}
 
 <!-- foot -->
 <section class="tab" id="t-foot">
+  <p class="hint" id="fOff" style="display:none;background:#2a2410;border:1px solid #6b5418;color:#ffe08a;border-radius:12px;padding:10px 12px">📴 OBS est fermé : le match est gardé sur ton téléphone. Tu peux quand même gérer le score et tout envoyer sur Discord.</p>
   <div class="card">
     <div class="fsc">
       <div><div class="t" id="fHT"><span class="sw"></span>DOM</div><div class="n" id="fHS">0</div></div><div style="font-size:30px;opacity:.35">-</div>
@@ -247,6 +248,93 @@ input[type=color]{padding:4px;height:46px}
 </nav>
 <div id="toast"></div>
 
+<script>
+/* Kamei TV Foot - état du match partagé entre la Régie Foot et les overlays (même OBS) */
+const KF_KEY = 'kameifoot_v1';
+const KF_TEAM = (name, short, color) => ({ name, short, color, score: 0, fouls: 0, to: false, players: '' });
+const KF_DEFAULT = {
+  comp: 'MATCH AMICAL',
+  venue: 'Bruxelles',
+  home: KF_TEAM('KAMEI FC', 'KAM', '#39ff88'),
+  away: KF_TEAM('ADVERSAIRE', 'ADV', '#ff3b5c'),
+  period: 1,                                  // 1 = 1re mi-temps, 2 = 2e, 3 = prolongation
+  clock: { running: false, startedAt: 0, acc: 0, dur: 1200, down: true },   // futsal : 2 × 20 min, décompte
+  goal: { n: 0, side: 'home', scorer: '' },  // n augmente → animation BUT
+  card: { n: 0, side: 'home', player: '', color: 'yellow' },
+  lt: { visible: false, name: '', role: '' },
+  ticker: 'KAMEI TV FOOT  •  Futsal en direct  •  Rejoins le Discord Kamei  •  Lâche un follow',
+  bugVisible: true,
+  events: []                                 // feuille de match : buts et cartons
+};
+function kfLoad() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KF_KEY) || '{}');
+    const o = Object.assign({}, KF_DEFAULT, s);
+    o.home = Object.assign({}, KF_DEFAULT.home, s.home); o.away = Object.assign({}, KF_DEFAULT.away, s.away);
+    o.clock = Object.assign({}, KF_DEFAULT.clock, s.clock);
+    return o;
+  } catch (e) { return JSON.parse(JSON.stringify(KF_DEFAULT)); }
+}
+let kfBC = null; try { kfBC = new BroadcastChannel('kameifoot'); } catch (e) {}
+function kfSave(s) {
+  try { localStorage.setItem(KF_KEY, JSON.stringify(s)); } catch (e) {}
+  if (kfBC) kfBC.postMessage(1);
+}
+function kfWatch(cb) {
+  let last = '';
+  const fire = () => { const s = kfLoad(), j = JSON.stringify(s); if (j !== last) { last = j; cb(s); } };
+  fire();
+  window.addEventListener('storage', fire);
+  if (kfBC) kfBC.onmessage = fire;
+  setInterval(fire, 300);
+}
+function kfClock(c) {
+  const el = c.acc + (c.running ? (Date.now() - c.startedAt) / 1000 : 0);
+  return c.down ? Math.max(0, c.dur - el) : el;
+}
+const kfPeriod = (p) => p === 1 ? '1re MT' : p === 2 ? '2e MT' : 'PROL.';
+
+/* minute de jeu (1re MT 1-20, 2e MT 21-40… selon la durée choisie) */
+function kfMinute(s) {
+  const c = s.clock, el = c.acc + (c.running ? (Date.now() - c.startedAt) / 1000 : 0);
+  return Math.min(Math.floor(Math.min(el, c.dur) / 60) + 1 + (s.period - 1) * Math.round(c.dur / 60), s.period * Math.round(c.dur / 60) + 9);
+}
+function kfStop(c) { if (c.running) { c.acc += (Date.now() - c.startedAt) / 1000; c.running = false; } }
+/* applique un ordre (Régie Foot dans OBS ou Kamei Deck sur le téléphone) */
+function kfApply(s, c) {
+  const T = (x) => (x === 'away' ? 'away' : 'home');
+  s.events = s.events || [];
+  switch (c.op) {
+    case 'goal': { const t = T(c.side); s[t].score++; s.goal = { n: (s.goal.n || 0) + 1, side: t, scorer: c.scorer || '' };
+      s.events.push({ t: 'goal', side: t, who: c.scorer || '', min: kfMinute(s) }); break; }
+    case 'score': { const t = T(c.side); s[t].score = Math.max(0, s[t].score + (c.d || 0)); break; }
+    case 'foul': { const t = T(c.side); s[t].fouls = Math.max(0, s[t].fouls + (c.d || 0)); break; }
+    case 'to': { const t = T(c.side); s[t].to = !s[t].to; break; }
+    case 'card': { const t = T(c.side); s.card = { n: (s.card.n || 0) + 1, side: t, player: c.player || '', color: c.color === 'red' ? 'red' : 'yellow' };
+      s.events.push({ t: 'card', side: t, who: c.player || '', color: s.card.color, min: kfMinute(s) }); break; }
+    case 'undo': { const e = s.events.pop(); if (e && e.t === 'goal') s[e.side].score = Math.max(0, s[e.side].score - 1); break; }
+    case 'clock': { const k = s.clock;
+      if (c.a === 'toggle') { if (k.running) kfStop(k); else { k.startedAt = Date.now(); k.running = true; } }
+      if (c.a === 'reset') { k.running = false; k.startedAt = 0; k.acc = 0; }
+      if (c.a === 'adj') k.acc = Math.max(0, k.acc + (k.down ? -c.d : c.d));
+      if (c.a === 'dur') k.dur = Math.max(1, Math.min(90, +c.min || 20)) * 60;
+      if (c.a === 'down') k.down = !!c.v;
+      break; }
+    case 'period': s.period = c.p; s.clock.running = false; s.clock.startedAt = 0; s.clock.acc = 0;
+      s.home.fouls = s.away.fouls = 0; s.home.to = s.away.to = false; break;
+    case 'lt': s.lt = { visible: !!c.visible, name: c.name || s.lt.name, role: c.role || s.lt.role }; break;
+    case 'teams': for (const k of ['comp', 'venue', 'ticker', 'bugVisible']) if (c[k] !== undefined) s[k] = c[k];
+      for (const t of ['home', 'away']) if (c[t]) for (const f of ['name', 'short', 'color', 'players']) if (c[t][f] !== undefined) s[t][f] = c[t][f];
+      break;
+    case 'new': s.home.score = s.away.score = 0; s.home.fouls = s.away.fouls = 0; s.home.to = s.away.to = false;
+      s.period = 1; s.clock.running = false; s.clock.startedAt = 0; s.clock.acc = 0; s.events = []; break;
+    case 'replay': s.replayReq = Date.now(); break;
+    case 'tick': if (s.clock.running && s.clock.down && kfClock(s.clock) <= 0) { kfStop(s.clock); s.clock.acc = s.clock.dur; } break;
+  }
+  return s;
+}
+
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SB_URL = 'https://nbhfagjmtmzpvxajgxga.supabase.co', SB_KEY = 'sb_publishable_9vA0LkKaCl_ofBtmOuJBDg_7jOGF-a0';
@@ -259,7 +347,7 @@ function buzz() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) 
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
 /* ---------- onglets ---------- */
-function show(t) { $$('.tab').forEach((x) => x.classList.toggle('on', x.id === 't-' + t)); $$('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); if (t === 'discord') initDiscord(); if (t === 'foot') loadAuto(); window.scrollTo(0, 0); }
+function show(t) { $$('.tab').forEach((x) => x.classList.toggle('on', x.id === 't-' + t)); $$('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); if (t === 'discord') initDiscord(); if (t === 'foot') { paintFoot(); loadAuto(); } window.scrollTo(0, 0); }
 $$('nav button').forEach((b) => b.onclick = () => show(b.dataset.t));
 
 /* ---------- liaison avec OBS (Supabase Realtime) ---------- */
@@ -351,11 +439,18 @@ $$('[data-k]').forEach((b) => b.onclick = () => cmd(KEYS[b.dataset.k]));
 
 /* ---------- Foot ---------- */
 let FS = null, cardSide = 'home';
-const F = (c, ok) => cmd({ t: 'foot', c }, ok);
+const obsOn = () => !!(ch && ST && ST.foot && Date.now() - lastSeen < 30000);
+function F(c, ok) {
+  if (obsOn()) return cmd({ t: 'foot', c }, ok);
+  if (c.op === 'replay') return toast('Le replay a besoin d\'OBS ouvert', true);
+  buzz(); const s = kfLoad(); kfApply(s, c); kfSave(s); if (ok) toast(ok); paintFoot();
+}
 const per = (p) => p === 1 ? '1re mi-temps' : p === 2 ? '2e mi-temps' : 'Prolongation';
 function fClock(c) { const el = c.acc + (c.running ? (Date.now() - c.startedAt) / 1000 : 0); return c.down ? Math.max(0, c.dur - el) : el; }
 function paintFoot() {
-  if (!ST || !ST.foot) return; FS = ST.foot;
+  const on = obsOn();
+  if (on) { FS = ST.foot; kfSave(FS); } else FS = kfLoad();      // OBS fermé : le match vit sur le téléphone
+  $('#fOff').style.display = on ? 'none' : '';
   const H = FS.home, A = FS.away, esc = (t) => String(t || '').replace(/[<>&"]/g, '');
   $('#fHT').innerHTML = `<span class="sw" style="background:${esc(H.color)}"></span>${esc(H.short)}`;
   $('#fAT').innerHTML = `<span class="sw" style="background:${esc(A.color)}"></span>${esc(A.short)}`;
@@ -377,6 +472,7 @@ function paintFoot() {
   $('#fPlayers').innerHTML = (H.players + '\n' + A.players).split('\n').map((x) => x.trim()).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join('');
 }
 setInterval(() => { if (FS) $('#fClk').textContent = mmss(fClock(FS.clock)); }, 250);
+setInterval(() => { if ($('#t-foot').classList.contains('on')) paintFoot(); }, 3000);
 $$('[data-goal]').forEach((b) => b.onclick = () => { F({ op: 'goal', side: b.dataset.goal, scorer: $('#fScorer').value.trim() }, 'BUT ! ⚽'); $('#fScorer').value = ''; });
 $$('[data-fs]').forEach((b) => b.onclick = () => { const [side, d] = b.dataset.fs.split(','); F({ op: 'score', side, d: +d }); });
 $$('[data-ff]').forEach((b) => b.onclick = () => { const [side, d] = b.dataset.ff.split(','); F({ op: 'foul', side, d: +d }); });
@@ -453,11 +549,11 @@ $('#fAutoPub').onchange = () => LS('kdeck-autopub', $('#fAutoPub').checked ? '1'
 // coup d'envoi → pronos fermés ; scène « Foot · Fin » → résultat publié
 let lastScene = null, lastRunning = false;
 setInterval(() => {
-  if (!ST || !FS) return;
+  if (!FS) return;
   const running = !!FS.clock.running;
   if (running && !lastRunning && FS.period === 1 && FS.clock.acc < 5) auto({ action: 'prono_close' }, null, true);
   lastRunning = running;
-  if (ST.current !== lastScene) {
+  if (ST && ST.current !== lastScene) {
     if (lastScene !== null && /foot/i.test(ST.current || '') && /fin/i.test(ST.current || '') && $('#fAutoPub').checked)
       auto({ action: 'foot_result', foot: FS, auto: true }, 'Résultat publié sur Discord 📣');
     lastScene = ST.current;
@@ -476,7 +572,7 @@ async function post(body, okMsg) {
 $('#dGo').onclick = async () => {
   const q = $('#dS').value.trim(), a = $('#dA').value.trim() || 'Pour', b = $('#dB').value.trim() || 'Contre';
   if (!q) return toast('Écris le sujet du débat', true);
-  if (await post({ kind: 'debat', question: q, answers: [a, b], hours: +$('#dH').value }, 'Débat lancé sur Discord 🏟️') && $('#dObs').checked && ch) {
+  if (await post({ kind: 'debat', question: q, answers: [a, b], hours: +$('#dH').value }, 'Débat lancé sur Discord 🏟️') && $('#dObs').checked && obsOn()) {
     cmd({ t: 'patch', patch: { topic: q, poll: { q, a: a.toUpperCase(), b: b.toUpperCase() } } });
     cmd({ t: 'poll', op: 'reset' }); cmd({ t: 'poll', op: 'show' });
   }
